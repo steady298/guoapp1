@@ -138,8 +138,8 @@ jobs:
           path: dist/android/*
           if-no-files-found: error
           retention-days: 14
+
   windows:
-    if: false
     needs: checks
     runs-on: windows-latest
     timeout-minutes: 45
@@ -153,9 +153,28 @@ jobs:
             arguments: '--all-sources'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: true
+      # 假设你也有对应的 build_windows.py 脚本。如果没有，可将其替换为原生的 flutter build windows 命令。
+      - run: python scripts/build_windows.py ${{ matrix.arguments }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.edition }}-windows
+          path: dist/windows/*
+          if-no-files-found: error
+          retention-days: 14
 
   ios:
-    if: false
     needs: checks
     runs-on: macos-latest
     timeout-minutes: 60
@@ -169,10 +188,30 @@ jobs:
             arguments: '--all-sources'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: true
+      # 假设你也有对应的 build_ios.py 脚本。如果没有，可将其替换为原生的 flutter build ipa --no-codesign 命令。
+      - run: python scripts/build_ios.py ${{ matrix.arguments }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.edition }}-ios
+          path: dist/ios/*
+          if-no-files-found: error
+          retention-days: 14
 
   release:
-    needs: [android]
-    if: always() && needs.android.result == 'success'
+    needs: [android, windows, ios]
+    if: always() && needs.android.result == 'success' && needs.windows.result == 'success' && needs.ios.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
